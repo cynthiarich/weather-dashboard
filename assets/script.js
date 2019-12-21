@@ -1,4 +1,5 @@
 var savedLocations = [];
+var currentLoc;
 
 function initialize() {
     //grab previous locations from local storage
@@ -6,18 +7,19 @@ function initialize() {
     var lastSearch;
     //display buttons for previous searches
     if (savedLocations) {
-        showPrevious();
         //get the last city searched so we can display it
-        lastSearch = savedLocations[savedLocations.length - 1];
-        getCurrent(lastSearch);
+        currentLoc = savedLocations[savedLocations.length - 1];
+        showPrevious();
+        getCurrent(currentLoc);
     }
     else {
         //try to geolocate, otherwise set city to raleigh
         if (!navigator.geolocation) {
+            //can't geolocate and no previous searches, so just give them one
             getCurrent("Raleigh");
         }
         else {
-            navigator.geolocation.getCurrentPosition(success);
+            navigator.geolocation.getCurrentPosition(success, error);
         }
     }
 
@@ -31,22 +33,32 @@ function success(position) {
         url: queryURL,
         method: "GET"
     }).then(function (response) {
-        savedLocations = [response.name];
-        //save the new array to localstorage
-        localStorage.setItem("weathercities", JSON.stringify(savedLocations));
-        showPrevious();
-        getCurrent(response.name);
+        currentLoc = response.name;
+        saveLoc(response.name);
+        getCurrent(currentLoc);
     });
 
+}
+
+function error(){
+    //can't geolocate and no previous searches, so just give them one
+    currentLoc = "Raleigh"
+    getCurrent(currentLoc);
 }
 
 function showPrevious() {
     //show the previously searched for locations based on what is in local storage
     if (savedLocations) {
         $("#prevSearches").empty();
-        var btns = $("<div>").attr("class", "btn-group-vertical btn-block");
+        var btns = $("<div>").attr("class", "list-group");
         for (var i = 0; i < savedLocations.length; i++) {
-            var locBtn = $("<button>").attr("type", "button").attr("class", "btn btn-outline-secondary btn-lg text-left").attr("id", "loc-btn").text(savedLocations[i]);
+            var locBtn = $("<a>").attr("href", "#").attr("id", "loc-btn").text(savedLocations[i]);
+            if (savedLocations[i] == currentLoc){
+                locBtn.attr("class", "list-group-item list-group-item-action active");
+            }
+            else {
+                locBtn.attr("class", "list-group-item list-group-item-action");
+            }
             btns.prepend(locBtn);
         }
         $("#prevSearches").append(btns);
@@ -168,6 +180,19 @@ function clear() {
     $("#earthforecast").empty();
 }
 
+function saveLoc(loc){
+    //add this to the saved locations array
+    if (savedLocations === null) {
+        savedLocations = [loc];
+    }
+    else if (savedLocations.indexOf(loc) === -1) {
+        savedLocations.push(loc);
+    }
+    //save the new array to localstorage
+    localStorage.setItem("weathercities", JSON.stringify(savedLocations));
+    showPrevious();
+}
+
 $("#searchbtn").on("click", function () {
     //don't refresh the screen
     event.preventDefault();
@@ -177,19 +202,10 @@ $("#searchbtn").on("click", function () {
     if (loc !== "") {
         //clear the previous forecast
         clear();
-        //add this to the saved locations array
-        if (savedLocations === null) {
-            savedLocations = [loc];
-        }
-        else if (savedLocations.indexOf(loc) === -1) {
-            savedLocations.push(loc);
-        }
-        //save the new array to localstorage
-        localStorage.setItem("weathercities", JSON.stringify(savedLocations));
+        currentLoc = loc;
+        saveLoc(loc);
         //clear the search field value
         $("#searchinput").val("");
-        //refresh the previous search buttons
-        showPrevious();
         //get the new forecast
         getCurrent(loc);
     }
@@ -197,7 +213,9 @@ $("#searchbtn").on("click", function () {
 
 $(document).on("click", "#loc-btn", function () {
     clear();
-    getCurrent($(this).text());
+    currentLoc = $(this).text();
+    showPrevious();
+    getCurrent(currentLoc);
 });
 
 initialize();
