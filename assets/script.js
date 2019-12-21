@@ -8,14 +8,36 @@ function initialize() {
     if (savedLocations) {
         showPrevious();
         //get the last city searched so we can display it
-        lastSearch = savedLocations[savedLocations.length -1];
+        lastSearch = savedLocations[savedLocations.length - 1];
+        getCurrent(lastSearch);
     }
     else {
-        //set a random last city for now
-        lastSearch = "Atlanta";
+        //try to geolocate, otherwise set city to raleigh
+        if (!navigator.geolocation) {
+            getCurrent("Raleigh");
+        }
+        else {
+            navigator.geolocation.getCurrentPosition(success);
+        }
     }
-    //go get the forecast
-    getCurrent(lastSearch);
+
+}
+
+function success(position) {
+    var lat = position.coords.latitude;
+    var lon = position.coords.longitude;
+    var queryURL = "https://api.openweathermap.org/data/2.5/weather?lat=" + lat + "&lon=" + lon + "&APPID=7e4c7478cc7ee1e11440bf55a8358ec3";
+    $.ajax({
+        url: queryURL,
+        method: "GET"
+    }).then(function (response) {
+        savedLocations = [response.name];
+        //save the new array to localstorage
+        localStorage.setItem("weathercities", JSON.stringify(savedLocations));
+        showPrevious();
+        getCurrent(response.name);
+    });
+
 }
 
 function showPrevious() {
@@ -23,7 +45,7 @@ function showPrevious() {
     if (savedLocations) {
         $("#prevSearches").empty();
         var btns = $("<div>").attr("class", "btn-group-vertical btn-block");
-        for (var i = 0; i < savedLocations.length; i++){
+        for (var i = 0; i < savedLocations.length; i++) {
             var locBtn = $("<button>").attr("type", "button").attr("class", "btn btn-outline-secondary btn-lg text-left").attr("id", "loc-btn").text(savedLocations[i]);
             btns.prepend(locBtn);
         }
@@ -35,8 +57,13 @@ function getCurrent(city) {
     var queryURL = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&APPID=7e4c7478cc7ee1e11440bf55a8358ec3&units=imperial";
     $.ajax({
         url: queryURL,
-        method: "GET"
-      }).then(function(response) {
+        method: "GET",
+        error: function (){
+            savedLocations.splice(savedLocations.indexOf(city), 1);
+            localStorage.setItem("weathercities", JSON.stringify(savedLocations));
+            initialize();
+        }
+    }).then(function (response) {
         //create the card
         var currCard = $("<div>").attr("class", "card bg-light");
         $("#earthforecast").append(currCard);
@@ -57,7 +84,8 @@ function getCurrent(city) {
         var textDiv = $("<div>").attr("class", "col-md-8");
         var cardBody = $("<div>").attr("class", "card-body");
         textDiv.append(cardBody);
-        
+        //display city name
+        cardBody.append($("<h3>").attr("class", "card-title").text(response.name));
         //display last updated
         var currdate = moment(response.dt, "X").format("dddd, MMMM Do YYYY, h:mm a");
         cardBody.append($("<p>").attr("class", "card-text").append($("<small>").attr("class", "text-muted").text("Last updated: " + currdate)));
@@ -67,13 +95,13 @@ function getCurrent(city) {
         cardBody.append($("<p>").attr("class", "card-text").text("Humidity: " + response.main.humidity + "%"));
         //display Wind Speed
         cardBody.append($("<p>").attr("class", "card-text").text("Wind Speed: " + response.wind.speed + " MPH"));
-        
+
         //get UV Index
         var uvURL = "https://api.openweathermap.org/data/2.5/uvi?appid=7e4c7478cc7ee1e11440bf55a8358ec3&lat=" + response.coord.lat + "&lon=" + response.coord.lat;
         $.ajax({
             url: uvURL,
             method: "GET"
-        }).then(function(uvresponse) {
+        }).then(function (uvresponse) {
             var uvindex = uvresponse.value;
             var bgcolor;
             if (uvindex <= 3) {
@@ -91,12 +119,12 @@ function getCurrent(city) {
             var uvdisp = $("<p>").attr("class", "card-text").text("UV Index: ");
             uvdisp.append($("<span>").attr("class", "uvindex").attr("style", ("background-color:" + bgcolor)).text(uvindex));
             cardBody.append(uvdisp);
-            
-        }); 
+
+        });
 
         cardRow.append(textDiv);
-        getForecast(response.id); 
-      });
+        getForecast(response.id);
+    });
 }
 
 function getForecast(city) {
@@ -105,14 +133,14 @@ function getForecast(city) {
     $.ajax({
         url: queryURL,
         method: "GET"
-    }).then(function(response) {
+    }).then(function (response) {
         //add container div for forecast cards
         var newrow = $("<div>").attr("class", "forecast");
         $("#earthforecast").append(newrow);
 
         //loop through array response to find the forecasts for 15:00
-        for (var i = 0; i < response.list.length; i++){
-            if (response.list[i].dt_txt.indexOf("15:00:00") !== -1){
+        for (var i = 0; i < response.list.length; i++) {
+            if (response.list[i].dt_txt.indexOf("15:00:00") !== -1) {
                 var newCol = $("<div>").attr("class", "one-fifth");
                 newrow.append(newCol);
 
@@ -132,10 +160,10 @@ function getForecast(city) {
                 bodyDiv.append($("<p>").attr("class", "card-text").text("Humidity: " + response.list[i].main.humidity + "%"));
             }
         }
-    });  
+    });
 }
 
-function clear (){
+function clear() {
     //clear all the weather
     $("#earthforecast").empty();
 }
@@ -146,14 +174,14 @@ $("#searchbtn").on("click", function () {
     //grab the value of the input field
     var loc = $("#searchinput").val().trim();
     //if loc wasn't empty
-    if (loc !== ""){
+    if (loc !== "") {
         //clear the previous forecast
         clear();
         //add this to the saved locations array
-        if (savedLocations === null){
+        if (savedLocations === null) {
             savedLocations = [loc];
         }
-        else if (savedLocations.indexOf(loc) === -1){
+        else if (savedLocations.indexOf(loc) === -1) {
             savedLocations.push(loc);
         }
         //save the new array to localstorage
@@ -167,7 +195,7 @@ $("#searchbtn").on("click", function () {
     }
 });
 
-$(document).on("click", "#loc-btn", function (){
+$(document).on("click", "#loc-btn", function () {
     clear();
     getCurrent($(this).text());
 });
