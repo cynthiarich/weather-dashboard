@@ -2,7 +2,7 @@
 
 A simple web-app that allows you to search for a city and get the current weather and 5 day forecast. You can experience the deployed project here: https://cynthiarich.github.io/weather-dashboard
 
-![Screenshot of deployed app](https://user-images.githubusercontent.com/15653252/71303017-cc624600-2380-11ea-910b-96223763a2f4.png)
+![Screenshot of deployed app](https://user-images.githubusercontent.com/15653252/71304089-a2fce680-238f-11ea-8633-bd42fd38499c.png)
 
 ### Usage
 
